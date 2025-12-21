@@ -7,7 +7,7 @@ from aiogram.types import (
 import os
 
 # ================== إعدادات ==================
-TOKEN = os.getenv("TOKEN")   # ⬅️ مهم جداً
+TOKEN = os.getenv("BOT_TOKEN")   # ✅ تم التعديل هنا
 ADMIN_ID = 1188982651
 
 bot = Bot(token=TOKEN)
@@ -168,23 +168,4 @@ async def confirm_remove(message: types.Message):
     kb = InlineKeyboardMarkup()
     kb.add(
         InlineKeyboardButton("✅ نعم احذف", callback_data=f"confirm_delete_{user_id}"),
-        InlineKeyboardButton("❌ إلغاء", callback_data="cancel_delete")
-    )
-
-    await message.answer(f"⚠️ تأكيد حذف المستخدم\n🆔 {user_id}", reply_markup=kb)
-
-@dp.callback_query_handler(lambda c: c.data.startswith("confirm_delete_"))
-async def delete_confirmed(call: types.CallbackQuery):
-    user_id = call.data.split("_")[-1]
-    remove_user(user_id)
-    await call.message.edit_text("✅ تم حذف المستخدم")
-    await bot.send_message(ADMIN_ID, "لوحة الأدمن 👇", reply_markup=admin_keyboard)
-
-@dp.callback_query_handler(lambda c: c.data == "cancel_delete")
-async def delete_canceled(call: types.CallbackQuery):
-    await call.message.edit_text("❌ تم إلغاء الحذف")
-    await bot.send_message(ADMIN_ID, "لوحة الأدمن 👇", reply_markup=admin_keyboard)
-
-# ================== تشغيل ==================
-if __name__ == "__main__":
-    executor.start_polling(dp)
+        InlineKeyboa

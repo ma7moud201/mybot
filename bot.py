@@ -6,7 +6,7 @@ import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 # ================== إعدادات ==================
-TOKEN = os.getenv("TOKEN")  # حطه في Environment Variables على Render
+TOKEN = os.getenv("8283739227:AAH5TuALFuTeqHI422jzJm-81orkIVR2NLY")  # حطه في Environment Variables على Render
 ADMIN_ID = 1188982651
 
 bot = Bot(token=TOKEN)
@@ -188,3 +188,4 @@ threading.Thread(target=run_dummy_server, daemon=True).start()
 # ================== تشغيل ==================
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
+

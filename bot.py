@@ -1,15 +1,10 @@
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
-from aiogram.types import (
-    ReplyKeyboardMarkup,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton
-)
+from aiogram.types import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 import os
 
-# ================== الإعدادات ==================
-TOKEN = "8283739227:AAH5TuALFuTeqHI422jzJm-81orkIVR2NLY"  # 🔴 حط توكن البوت من BotFather
-ADMIN_ID = 1188982651              # 🆔 آيدي الأدمن
+TOKEN = "8283739227:AAH5TuALFuTeqHI422jzJm-81orkIVR2NLY"   # 🔴 حط توكنك هنا
+ADMIN_ID = 1188982651
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
@@ -33,48 +28,42 @@ subjects = [
     "مهارات التواصل"
 ]
 
-# ================== أدوات ==================
 def get_users():
     if not os.path.exists(USERS_FILE):
         return []
     with open(USERS_FILE, "r", encoding="utf-8") as f:
-        return list(set(u.strip() for u in f if u.strip()))
+        return [u.strip() for u in f if u.strip()]
 
-def is_approved(user_id: int) -> bool:
+def is_approved(user_id):
     return user_id == ADMIN_ID or str(user_id) in get_users()
 
-def approve_user(user_id: int):
-    if user_id == ADMIN_ID:
-        return
+def approve_user(user_id):
     if str(user_id) not in get_users():
         with open(USERS_FILE, "a", encoding="utf-8") as f:
             f.write(str(user_id) + "\n")
 
-def remove_user(user_id: str):
+def remove_user(user_id):
     users = [u for u in get_users() if u != user_id]
     with open(USERS_FILE, "w", encoding="utf-8") as f:
         for u in users:
             f.write(u + "\n")
 
-# ================== الكيبورد ==================
-start_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
-start_keyboard.add("ابدأ")
+start_kb = ReplyKeyboardMarkup(resize_keyboard=True)
+start_kb.add("ابدأ")
 
-subjects_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
+subjects_kb = ReplyKeyboardMarkup(resize_keyboard=True)
 for s in subjects:
-    subjects_keyboard.add(s)
-subjects_keyboard.add("🔙 رجوع")
+    subjects_kb.add(s)
+subjects_kb.add("🔙 رجوع")
 
-admin_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
-admin_keyboard.add("ابدأ")
-admin_keyboard.add("📊 إحصائية المستخدمين", "❌ حذف مستخدم")
+admin_kb = ReplyKeyboardMarkup(resize_keyboard=True)
+admin_kb.add("ابدأ")
+admin_kb.add("📊 إحصائية المستخدمين", "❌ حذف مستخدم")
 
-# ================== START ==================
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
-
     if message.from_user.id == ADMIN_ID:
-        await message.answer("👑 لوحة تحكم الأدمن", reply_markup=admin_keyboard)
+        await message.answer("👑 لوحة الأدمن", reply_markup=admin_kb)
         return
 
     if not is_approved(message.from_user.id):
@@ -83,72 +72,57 @@ async def start(message: types.Message):
             InlineKeyboardButton("✅ موافق", callback_data=f"approve_{message.from_user.id}"),
             InlineKeyboardButton("❌ رفض", callback_data=f"reject_{message.from_user.id}")
         )
-
         await bot.send_message(
             ADMIN_ID,
-            f"📥 طلب دخول جديد\n\n"
-            f"👤 الاسم: {message.from_user.full_name}\n"
-            f"🆔 ID: {message.from_user.id}",
+            f"طلب دخول\n{message.from_user.full_name}\n{message.from_user.id}",
             reply_markup=kb
         )
-
-        await message.answer("⏳ تم إرسال طلبك، انتظر موافقة الأدمن.")
+        await message.answer("⏳ بانتظار الموافقة")
         return
 
-    await message.answer("أهلًا 👋", reply_markup=start_keyboard)
+    await message.answer("أهلاً 👋", reply_markup=start_kb)
 
-# ================== موافقة / رفض ==================
 @dp.callback_query_handler(lambda c: c.data.startswith("approve_"))
 async def approve(call: types.CallbackQuery):
-    user_id = int(call.data.split("_")[1])
-    approve_user(user_id)
-    await bot.send_message(user_id, "✅ تمت الموافقة! أرسل /start")
-    await call.message.edit_text("✅ تمت الموافقة")
+    uid = call.data.split("_")[1]
+    approve_user(uid)
+    await bot.send_message(uid, "✅ تمت الموافقة، أرسل /start")
+    await call.message.edit_text("تمت الموافقة")
 
 @dp.callback_query_handler(lambda c: c.data.startswith("reject_"))
 async def reject(call: types.CallbackQuery):
-    user_id = int(call.data.split("_")[1])
-    await bot.send_message(user_id, "❌ تم رفض طلبك.")
-    await call.message.edit_text("❌ تم الرفض")
+    uid = call.data.split("_")[1]
+    await bot.send_message(uid, "❌ تم الرفض")
+    await call.message.edit_text("تم الرفض")
 
-# ================== المواد ==================
 @dp.message_handler(lambda m: m.text == "ابدأ")
 async def show_subjects(message: types.Message):
-    await message.answer("اختر المادة 📚", reply_markup=subjects_keyboard)
-
-@dp.message_handler(lambda m: m.text == "🔙 رجوع")
-async def back(message: types.Message):
-    if message.from_user.id == ADMIN_ID:
-        await message.answer("لوحة الأدمن 👇", reply_markup=admin_keyboard)
-    else:
-        await message.answer("القائمة الرئيسية 👇", reply_markup=start_keyboard)
+    await message.answer("اختر مادة 📚", reply_markup=subjects_kb)
 
 @dp.message_handler(lambda m: m.text in subjects)
 async def send_files(message: types.Message):
     folder = os.path.join(SUBJECTS_DIR, message.text)
-
-    if not os.path.exists(folder) or not os.listdir(folder):
-        await message.answer("📭 لا يوجد ملفات.", reply_markup=subjects_keyboard)
+    if not os.path.exists(folder):
+        await message.answer("لا يوجد ملفات")
         return
 
     for file in os.listdir(folder):
-        path = os.path.join(folder, file)
-        with open(path, "rb") as f:
-            if file.lower().endswith(".pdf"):
-                await message.answer_document(f)
-            else:
-                await message.answer_photo(f)
+        with open(os.path.join(folder, file), "rb") as f:
+            await message.answer_document(f)
 
-    await message.answer("⬅️ اختر مادة أخرى", reply_markup=subjects_keyboard)
-
-# ================== إحصائيات ==================
-@dp.message_handler(lambda m: m.from_user.id == ADMIN_ID and m.text == "📊 إحصائية المستخدمين")
+@dp.message_handler(lambda m: m.text == "📊 إحصائية المستخدمين" and m.from_user.id == ADMIN_ID)
 async def stats(message: types.Message):
     users = get_users()
-    text = f"👥 عدد المستخدمين: {len(users)}\n\n"
-    for u in users:
-        text += f"🆔 {u}\n"
-    await message.answer(text, reply_markup=admin_keyboard)
+    await message.answer(f"عدد المستخدمين: {len(users)}", reply_markup=admin_kb)
 
-# ================== حذف مستخدم ==================
-@dp.message_handle_
+@dp.message_handler(lambda m: m.text == "❌ حذف مستخدم" and m.from_user.id == ADMIN_ID)
+async def ask_delete(message: types.Message):
+    await message.answer("أرسل ID")
+
+@dp.message_handler(lambda m: m.text.isdigit() and m.from_user.id == ADMIN_ID)
+async def delete_user(message: types.Message):
+    remove_user(message.text)
+    await message.answer("تم الحذف", reply_markup=admin_kb)
+
+if __name__ == "__main__":
+    executor.start_polling(dp)

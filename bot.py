@@ -1,19 +1,21 @@
-from aiogram import Bot, Dispatcher, types
-from aiogram.utils import executor
-from aiogram.types import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 import os
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from aiogram import Bot, Dispatcher, types
+from aiogram.utils import executor
+from aiogram.types import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 
 # ================== إعدادات ==================
-TOKEN = os.getenv("8283739227:AAH5TuALFuTeqHI422jzJm-81orkIVR2NLY")  # حطه في Environment Variables على Render
+TOKEN = os.getenv("TOKEN")
+if not TOKEN:
+    raise RuntimeError("TOKEN not found in environment variables")
+
 ADMIN_ID = 1188982651
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SUBJECTS_DIR = os.path.join(BASE_DIR, "subjects")
 USERS_FILE = os.path.join(BASE_DIR, "users.txt")
 
 subjects = [
@@ -36,24 +38,20 @@ def get_users():
     if not os.path.exists(USERS_FILE):
         return []
     with open(USERS_FILE, "r", encoding="utf-8") as f:
-        return sorted(set(u.strip() for u in f if u.strip()))
+        return [u.strip() for u in f if u.strip()]
 
-def is_approved(user_id):
-    return user_id == ADMIN_ID or str(user_id) in get_users()
-
-def approve_user(user_id):
-    if user_id == ADMIN_ID:
-        return
-    users = get_users()
-    if str(user_id) not in users:
+def approve_user(uid):
+    if str(uid) not in get_users():
         with open(USERS_FILE, "a", encoding="utf-8") as f:
-            f.write(str(user_id) + "\n")
+            f.write(str(uid) + "\n")
 
-def remove_user(user_id):
-    users = [u for u in get_users() if u != str(user_id)]
+def remove_user(uid):
+    users = [u for u in get_users() if u != str(uid)]
     with open(USERS_FILE, "w", encoding="utf-8") as f:
-        for u in users:
-            f.write(u + "\n")
+        f.write("\n".join(users))
+
+def is_approved(uid):
+    return uid == ADMIN_ID or str(uid) in get_users()
 
 # ================== كيبورد ==================
 start_kb = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -66,7 +64,7 @@ subjects_kb.add("🔙 رجوع")
 
 admin_kb = ReplyKeyboardMarkup(resize_keyboard=True)
 admin_kb.add("ابدأ")
-admin_kb.add("📊 إحصائية المستخدمين", "❌ حذف مستخدم")
+admin_kb.add("📊 إحصائيات", "❌ حذف مستخدم")
 
 # ================== START ==================
 @dp.message_handler(commands=["start"])
@@ -78,114 +76,86 @@ async def start(message: types.Message):
     if not is_approved(message.from_user.id):
         kb = InlineKeyboardMarkup()
         kb.add(
-            InlineKeyboardButton("✅ موافق", callback_data=f"approve_{message.from_user.id}"),
+            InlineKeyboardButton("✅ موافقة", callback_data=f"approve_{message.from_user.id}"),
             InlineKeyboardButton("❌ رفض", callback_data=f"reject_{message.from_user.id}")
         )
-
         await bot.send_message(
             ADMIN_ID,
-            f"📥 طلب دخول جديد\n\n"
-            f"👤 الاسم: {message.from_user.full_name}\n"
-            f"🆔 ID: {message.from_user.id}",
+            f"طلب دخول جديد\n👤 {message.from_user.full_name}\n🆔 {message.from_user.id}",
             reply_markup=kb
         )
-        await message.answer("⏳ تم إرسال طلبك، انتظر الموافقة.")
+        await message.answer("⏳ تم إرسال طلبك")
         return
 
-    await message.answer("أهلاً 👋", reply_markup=start_kb)
+    await message.answer("أهلاً بك 👋", reply_markup=start_kb)
 
-# ================== موافقة / رفض ==================
+# ================== موافقة ==================
 @dp.callback_query_handler(lambda c: c.data.startswith("approve_"))
 async def approve(call: types.CallbackQuery):
     uid = int(call.data.split("_")[1])
     approve_user(uid)
     await bot.send_message(uid, "✅ تمت الموافقة، أرسل /start")
-
-    try:
-        await call.message.edit_text("✅ تمت الموافقة")
-    except:
-        pass
+    await call.message.edit_text("✅ تمت الموافقة")
 
 @dp.callback_query_handler(lambda c: c.data.startswith("reject_"))
 async def reject(call: types.CallbackQuery):
     uid = int(call.data.split("_")[1])
-    await bot.send_message(uid, "❌ تم رفض طلبك.")
-
-    try:
-        await call.message.edit_text("❌ تم الرفض")
-    except:
-        pass
+    await bot.send_message(uid, "❌ تم رفض طلبك")
+    await call.message.edit_text("❌ تم الرفض")
 
 # ================== مواد ==================
 @dp.message_handler(lambda m: m.text == "ابدأ")
 async def show_subjects(message: types.Message):
-    await message.answer("اختر المادة 📚", reply_markup=subjects_kb)
+    await message.answer("اختر المادة:", reply_markup=subjects_kb)
 
 @dp.message_handler(lambda m: m.text in subjects)
-async def send_files(message: types.Message):
-    folder = os.path.join(SUBJECTS_DIR, message.text)
+async def send_subject(message: types.Message):
+    await message.answer(f"📚 اخترت: {message.text}", reply_markup=subjects_kb)
 
-    if not os.path.exists(folder) or not os.listdir(folder):
-        await message.answer("📭 لا يوجد ملفات.", reply_markup=subjects_kb)
-        return
-
-    for file in os.listdir(folder):
-        path = os.path.join(folder, file)
-        with open(path, "rb") as f:
-            await message.answer_document(f)
-
-# ================== زر الرجوع ==================
+# ================== زر الرجوع (مضبوط) ==================
 @dp.message_handler(lambda m: m.text == "🔙 رجوع")
-async def go_back(message: types.Message):
+async def back(message: types.Message):
     if message.from_user.id == ADMIN_ID:
         await message.answer("👑 لوحة الأدمن", reply_markup=admin_kb)
     else:
-        await message.answer("القائمة الرئيسية 👇", reply_markup=start_kb)
+        await message.answer("🏠 القائمة الرئيسية", reply_markup=start_kb)
 
 # ================== إحصائيات ==================
-@dp.message_handler(lambda m: m.from_user.id == ADMIN_ID and m.text == "📊 إحصائية المستخدمين")
+@dp.message_handler(lambda m: m.from_user.id == ADMIN_ID and m.text == "📊 إحصائيات")
 async def stats(message: types.Message):
     users = get_users()
-    text = f"👥 عدد المستخدمين: {len(users)}\n\n"
-
+    text = f"👥 العدد: {len(users)}\n\n"
     for u in users:
         try:
             chat = await bot.get_chat(int(u))
             text += f"👤 {chat.full_name}\n🆔 {u}\n\n"
         except:
             text += f"🆔 {u}\n\n"
-
     await message.answer(text, reply_markup=admin_kb)
 
-# ================== حذف مستخدم ==================
+# ================== حذف ==================
 @dp.message_handler(lambda m: m.from_user.id == ADMIN_ID and m.text == "❌ حذف مستخدم")
-async def ask_delete(message: types.Message):
-    await message.answer("🆔 أرسل ID المستخدم للحذف:")
+async def ask_id(message: types.Message):
+    await message.answer("أرسل ID المستخدم")
 
 @dp.message_handler(lambda m: m.from_user.id == ADMIN_ID and m.text.isdigit())
 async def delete_user(message: types.Message):
-    if message.text not in get_users():
-        await message.answer("❌ المستخدم غير موجود", reply_markup=admin_kb)
-        return
-
     remove_user(message.text)
-    await message.answer("✅ تم حذف المستخدم", reply_markup=admin_kb)
+    await message.answer("✅ تم الحذف", reply_markup=admin_kb)
 
 # ================== سيرفر وهمي (Render) ==================
-class DummyHandler(BaseHTTPRequestHandler):
+class Dummy(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"OK")
 
-def run_dummy_server():
+def run_server():
     port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(("0.0.0.0", port), DummyHandler)
-    server.serve_forever()
+    HTTPServer(("0.0.0.0", port), Dummy).serve_forever()
 
-threading.Thread(target=run_dummy_server, daemon=True).start()
+threading.Thread(target=run_server, daemon=True).start()
 
 # ================== تشغيل ==================
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
-

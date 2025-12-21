@@ -1,14 +1,15 @@
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
 from aiogram.types import (
-    ReplyKeyboardMarkup, KeyboardButton,
-    InlineKeyboardMarkup, InlineKeyboardButton
+    ReplyKeyboardMarkup,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton
 )
 import os
 
-# ================== إعدادات ==================
-TOKEN = os.getenv("BOT_TOKEN")   # ✅ تم التعديل هنا
-ADMIN_ID = 1188982651
+# ================== الإعدادات ==================
+TOKEN = "8283739227:AAH5TuALFuTeqHI422jzJm-81orkIVR2NLY"  # 🔴 حط توكن البوت من BotFather
+ADMIN_ID = 1188982651              # 🆔 آيدي الأدمن
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
@@ -37,7 +38,7 @@ def get_users():
     if not os.path.exists(USERS_FILE):
         return []
     with open(USERS_FILE, "r", encoding="utf-8") as f:
-        return sorted(set(u.strip() for u in f if u.strip()))
+        return list(set(u.strip() for u in f if u.strip()))
 
 def is_approved(user_id: int) -> bool:
     return user_id == ADMIN_ID or str(user_id) in get_users()
@@ -47,7 +48,7 @@ def approve_user(user_id: int):
         return
     if str(user_id) not in get_users():
         with open(USERS_FILE, "a", encoding="utf-8") as f:
-            f.write(f"{user_id}\n")
+            f.write(str(user_id) + "\n")
 
 def remove_user(user_id: str):
     users = [u for u in get_users() if u != user_id]
@@ -55,7 +56,7 @@ def remove_user(user_id: str):
         for u in users:
             f.write(u + "\n")
 
-# ================== كيبورد ==================
+# ================== الكيبورد ==================
 start_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
 start_keyboard.add("ابدأ")
 
@@ -90,10 +91,11 @@ async def start(message: types.Message):
             f"🆔 ID: {message.from_user.id}",
             reply_markup=kb
         )
-        await message.answer("⏳ تم إرسال طلبك، انتظر الموافقة.")
+
+        await message.answer("⏳ تم إرسال طلبك، انتظر موافقة الأدمن.")
         return
 
-    await message.answer("نورت 👋", reply_markup=start_keyboard)
+    await message.answer("أهلًا 👋", reply_markup=start_keyboard)
 
 # ================== موافقة / رفض ==================
 @dp.callback_query_handler(lambda c: c.data.startswith("approve_"))
@@ -109,7 +111,7 @@ async def reject(call: types.CallbackQuery):
     await bot.send_message(user_id, "❌ تم رفض طلبك.")
     await call.message.edit_text("❌ تم الرفض")
 
-# ================== مواد ==================
+# ================== المواد ==================
 @dp.message_handler(lambda m: m.text == "ابدأ")
 async def show_subjects(message: types.Message):
     await message.answer("اختر المادة 📚", reply_markup=subjects_keyboard)
@@ -137,7 +139,7 @@ async def send_files(message: types.Message):
             else:
                 await message.answer_photo(f)
 
-    await message.answer("⬅️ رجوع", reply_markup=subjects_keyboard)
+    await message.answer("⬅️ اختر مادة أخرى", reply_markup=subjects_keyboard)
 
 # ================== إحصائيات ==================
 @dp.message_handler(lambda m: m.from_user.id == ADMIN_ID and m.text == "📊 إحصائية المستخدمين")
@@ -145,27 +147,8 @@ async def stats(message: types.Message):
     users = get_users()
     text = f"👥 عدد المستخدمين: {len(users)}\n\n"
     for u in users:
-        try:
-            chat = await bot.get_chat(int(u))
-            text += f"👤 {chat.full_name}\n🆔 {u}\n\n"
-        except:
-            text += f"🆔 {u}\n\n"
+        text += f"🆔 {u}\n"
     await message.answer(text, reply_markup=admin_keyboard)
 
 # ================== حذف مستخدم ==================
-@dp.message_handler(lambda m: m.from_user.id == ADMIN_ID and m.text == "❌ حذف مستخدم")
-async def ask_remove(message: types.Message):
-    await message.answer("🆔 أرسل ID المستخدم للحذف:")
-
-@dp.message_handler(lambda m: m.from_user.id == ADMIN_ID and m.text.isdigit())
-async def confirm_remove(message: types.Message):
-    user_id = message.text
-
-    if user_id not in get_users():
-        await message.answer("❌ المستخدم غير موجود", reply_markup=admin_keyboard)
-        return
-
-    kb = InlineKeyboardMarkup()
-    kb.add(
-        InlineKeyboardButton("✅ نعم احذف", callback_data=f"confirm_delete_{user_id}"),
-        InlineKeyboa
+@dp.message_handle_

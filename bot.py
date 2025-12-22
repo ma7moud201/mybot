@@ -85,10 +85,10 @@ async def start(message: types.Message):
             f"طلب دخول جديد\n👤 {message.from_user.full_name}\n🆔 {message.from_user.id}",
             reply_markup=kb
         )
-        await message.answer("⏳ بانتظار الموافقة")
+        await message.answer("⏳ بانتظار الموافقة من محمود")
         return
 
-    await message.answer("أهلاً 👋", reply_markup=start_kb)
+    await message.answer("أهلاً نورت ياحلو 👋", reply_markup=start_kb)
 
 # ================== موافقة ==================
 @dp.callback_query_handler(lambda c: c.data.startswith("approve_"))
@@ -177,3 +177,4 @@ threading.Thread(target=run_server, daemon=True).start()
 # ================== تشغيل ==================
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
+

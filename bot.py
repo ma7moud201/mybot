@@ -3,12 +3,16 @@ import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
-from aiogram.types import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import (
+    ReplyKeyboardMarkup,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton
+)
 
 # ================== إعدادات ==================
-TOKEN = os.getenv("TOKEN")
+TOKEN = os.getenv("TOKEN")  # لا تكتب التوكن بالكود
 if not TOKEN:
-    raise RuntimeError("TOKEN not found in environment variables")
+    raise RuntimeError("TOKEN not found")
 
 ADMIN_ID = 1188982651
 
@@ -17,6 +21,7 @@ dp = Dispatcher(bot)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USERS_FILE = os.path.join(BASE_DIR, "users.txt")
+MATERIALS_DIR = os.path.join(BASE_DIR, "materials")
 
 subjects = [
     "أساسيات التمريض عملي",
@@ -33,7 +38,7 @@ subjects = [
     "مهارات التواصل"
 ]
 
-# ================== أدوات ==================
+# ================== أدوات المستخدمين ==================
 def get_users():
     if not os.path.exists(USERS_FILE):
         return []
@@ -53,7 +58,7 @@ def remove_user(uid):
 def is_approved(uid):
     return uid == ADMIN_ID or str(uid) in get_users()
 
-# ================== كيبورد ==================
+# ================== كيبوردات ==================
 start_kb = ReplyKeyboardMarkup(resize_keyboard=True)
 start_kb.add("ابدأ")
 
@@ -84,10 +89,10 @@ async def start(message: types.Message):
             f"طلب دخول جديد\n👤 {message.from_user.full_name}\n🆔 {message.from_user.id}",
             reply_markup=kb
         )
-        await message.answer("⏳ تم إرسال طلبك")
+        await message.answer("⏳ تم إرسال طلبك للمشرف محمود")
         return
 
-    await message.answer("أهلاً بك 👋", reply_markup=start_kb)
+    await message.answer("نورت ياحلو 👋", reply_markup=start_kb)
 
 # ================== موافقة ==================
 @dp.callback_query_handler(lambda c: c.data.startswith("approve_"))
@@ -103,16 +108,33 @@ async def reject(call: types.CallbackQuery):
     await bot.send_message(uid, "❌ تم رفض طلبك")
     await call.message.edit_text("❌ تم الرفض")
 
-# ================== مواد ==================
+# ================== عرض المواد ==================
 @dp.message_handler(lambda m: m.text == "ابدأ")
 async def show_subjects(message: types.Message):
     await message.answer("اختر المادة:", reply_markup=subjects_kb)
 
+# ================== إرسال ملفات المادة ==================
 @dp.message_handler(lambda m: m.text in subjects)
-async def send_subject(message: types.Message):
-    await message.answer(f"📚 اخترت: {message.text}", reply_markup=subjects_kb)
+async def send_subject_files(message: types.Message):
+    folder = os.path.join(MATERIALS_DIR, message.text)
 
-# ================== زر الرجوع (مضبوط) ==================
+    if not os.path.exists(folder):
+        await message.answer("❌ لا يوجد ملفات لهذه المادة", reply_markup=subjects_kb)
+        return
+
+    files = os.listdir(folder)
+    if not files:
+        await message.answer("📂 المجلد فارغ", reply_markup=subjects_kb)
+        return
+
+    await message.answer(f"📚 {message.text}")
+
+    for file in files:
+        path = os.path.join(folder, file)
+        if os.path.isfile(path):
+            await message.answer_document(open(path, "rb"))
+
+# ================== زر الرجوع ==================
 @dp.message_handler(lambda m: m.text == "🔙 رجوع")
 async def back(message: types.Message):
     if message.from_user.id == ADMIN_ID:
@@ -125,15 +147,17 @@ async def back(message: types.Message):
 async def stats(message: types.Message):
     users = get_users()
     text = f"👥 العدد: {len(users)}\n\n"
+
     for u in users:
         try:
             chat = await bot.get_chat(int(u))
             text += f"👤 {chat.full_name}\n🆔 {u}\n\n"
         except:
             text += f"🆔 {u}\n\n"
+
     await message.answer(text, reply_markup=admin_kb)
 
-# ================== حذف ==================
+# ================== حذف مستخدم ==================
 @dp.message_handler(lambda m: m.from_user.id == ADMIN_ID and m.text == "❌ حذف مستخدم")
 async def ask_id(message: types.Message):
     await message.answer("أرسل ID المستخدم")
@@ -143,7 +167,7 @@ async def delete_user(message: types.Message):
     remove_user(message.text)
     await message.answer("✅ تم الحذف", reply_markup=admin_kb)
 
-# ================== سيرفر وهمي (Render) ==================
+# ================== سيرفر Render ==================
 class Dummy(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)

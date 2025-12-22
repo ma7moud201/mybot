@@ -3,14 +3,10 @@ import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
-from aiogram.types import (
-    ReplyKeyboardMarkup,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton
-)
+from aiogram.types import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 
 # ================== إعدادات ==================
-TOKEN = os.getenv("TOKEN")  # لا تكتب التوكن بالكود
+TOKEN = os.getenv("TOKEN")
 if not TOKEN:
     raise RuntimeError("TOKEN not found")
 
@@ -20,8 +16,8 @@ bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SUBJECTS_DIR = os.path.join(BASE_DIR, "subjects")
 USERS_FILE = os.path.join(BASE_DIR, "users.txt")
-MATERIALS_DIR = os.path.join(BASE_DIR, "materials")
 
 subjects = [
     "أساسيات التمريض عملي",
@@ -58,7 +54,7 @@ def remove_user(uid):
 def is_approved(uid):
     return uid == ADMIN_ID or str(uid) in get_users()
 
-# ================== كيبوردات ==================
+# ================== الكيبورد ==================
 start_kb = ReplyKeyboardMarkup(resize_keyboard=True)
 start_kb.add("ابدأ")
 
@@ -89,10 +85,10 @@ async def start(message: types.Message):
             f"طلب دخول جديد\n👤 {message.from_user.full_name}\n🆔 {message.from_user.id}",
             reply_markup=kb
         )
-        await message.answer("⏳ تم إرسال طلبك للمشرف محمود")
+        await message.answer("⏳ بانتظار الموافقة")
         return
 
-    await message.answer("نورت ياحلو 👋", reply_markup=start_kb)
+    await message.answer("أهلاً 👋", reply_markup=start_kb)
 
 # ================== موافقة ==================
 @dp.callback_query_handler(lambda c: c.data.startswith("approve_"))
@@ -111,28 +107,26 @@ async def reject(call: types.CallbackQuery):
 # ================== عرض المواد ==================
 @dp.message_handler(lambda m: m.text == "ابدأ")
 async def show_subjects(message: types.Message):
-    await message.answer("اختر المادة:", reply_markup=subjects_kb)
+    await message.answer("اختر المادة 📚", reply_markup=subjects_kb)
 
-# ================== إرسال ملفات المادة ==================
+# ================== إرسال ملفات المادة (المهم) ==================
 @dp.message_handler(lambda m: m.text in subjects)
 async def send_subject_files(message: types.Message):
-    folder = os.path.join(MATERIALS_DIR, message.text)
+    folder = os.path.join(SUBJECTS_DIR, message.text)
 
     if not os.path.exists(folder):
-        await message.answer("❌ لا يوجد ملفات لهذه المادة", reply_markup=subjects_kb)
+        await message.answer("❌ لا يوجد ملفات لهذه المادة")
         return
 
     files = os.listdir(folder)
     if not files:
-        await message.answer("📂 المجلد فارغ", reply_markup=subjects_kb)
+        await message.answer("📂 المجلد فارغ")
         return
-
-    await message.answer(f"📚 {message.text}")
 
     for file in files:
         path = os.path.join(folder, file)
-        if os.path.isfile(path):
-            await message.answer_document(open(path, "rb"))
+        with open(path, "rb") as f:
+            await message.answer_document(f)
 
 # ================== زر الرجوع ==================
 @dp.message_handler(lambda m: m.text == "🔙 رجوع")
@@ -163,7 +157,7 @@ async def ask_id(message: types.Message):
     await message.answer("أرسل ID المستخدم")
 
 @dp.message_handler(lambda m: m.from_user.id == ADMIN_ID and m.text.isdigit())
-async def delete_user(message: types.Message):
+async def delete_user_handler(message: types.Message):
     remove_user(message.text)
     await message.answer("✅ تم الحذف", reply_markup=admin_kb)
 

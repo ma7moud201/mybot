@@ -109,7 +109,7 @@ async def reject(call: types.CallbackQuery):
 async def show_subjects(message: types.Message):
     await message.answer("اختر المادة 📚", reply_markup=subjects_kb)
 
-# ================== إرسال ملفات المادة (المهم) ==================
+# ================== إرسال ملفات المادة ==================
 @dp.message_handler(lambda m: m.text in subjects)
 async def send_subject_files(message: types.Message):
     folder = os.path.join(SUBJECTS_DIR, message.text)
@@ -161,12 +161,16 @@ async def delete_user_handler(message: types.Message):
     remove_user(message.text)
     await message.answer("✅ تم الحذف", reply_markup=admin_kb)
 
-# ================== سيرفر Render ==================
+# ================== سيرفر Render (معدل) ==================
 class Dummy(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"OK")
+
+    def do_HEAD(self):
+        self.send_response(200)
+        self.end_headers()
 
 def run_server():
     port = int(os.environ.get("PORT", 10000))
@@ -177,4 +181,3 @@ threading.Thread(target=run_server, daemon=True).start()
 # ================== تشغيل ==================
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
-
